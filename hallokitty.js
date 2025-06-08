@@ -488,7 +488,6 @@ class AISystem {
             const response = await fetch(CONFIG.AI.API_URL, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${CONFIG.AI.API_KEY}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({

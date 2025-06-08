@@ -1,16 +1,12 @@
 {
-  "functions": {
-    "api/proxy.js": {
-      "runtime": "nodejs18.x"
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/proxy.js",
+      "use": "@vercel/node"
     }
-  },
+  ],
   "env": {
     "DASHSCOPE_API_KEY": "@dashscope_api_key"
-  },
-  "rewrites": [
-    {
-      "source": "/api/proxy",
-      "destination": "/api/proxy.js"
-    }
-  ]
+  }
 }
