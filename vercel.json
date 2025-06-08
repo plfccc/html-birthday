@@ -1,0 +1,16 @@
+{
+  "functions": {
+    "api/proxy.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "env": {
+    "DASHSCOPE_API_KEY": "@dashscope_api_key"
+  },
+  "rewrites": [
+    {
+      "source": "/api/proxy",
+      "destination": "/api/proxy.js"
+    }
+  ]
+}

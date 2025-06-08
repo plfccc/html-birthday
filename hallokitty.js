@@ -50,8 +50,8 @@ const CONFIG = {
     AI: {
         API_KEY: "sk-16c92e128aa646679d4e5375f4e38ba4",
         MODEL: 'qwen-plus',
-        API_URL: 'http://localhost:3000/api/proxy',
-        USE_MOCK_AI: true // 启用真实API调用
+        API_URL: '/api/proxy',
+        USE_MOCK_AI: false // 启用真实API调用
     }
 };
 
