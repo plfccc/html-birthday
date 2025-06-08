@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生日快乐！</title>
+    <link rel="stylesheet" href="hallokitty.css">
+</head>
+<body>
+    <div id="splash-screen">
+        <div class="splash-content">
+            <div class="kitty-container">
+                <canvas id="kittyCanvas"></canvas>
+                <img id="kitty-image" src="static/happyBirthDay.png" alt="Hello Kitty">
+            </div>
+            <h1 class="birthday-title">Happy Birthday!</h1>
+        </div>
+        <div class="scroll-indicator">↑ 向上滑动或向下滚动查看惊喜 ↑</div>
+    </div>
+    
+    <div id="cat-scene">
+        <canvas id="mainCanvas"></canvas>
+        <div id="dialogue-box"><p></p></div>
+    </div>
+
+    <script src="hallokitty.js"></script>
+</body>
+</html>
