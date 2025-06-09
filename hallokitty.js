@@ -2,6 +2,7 @@
 // Hello Kitty 生日派对游戏 - 结构化重构版本
 // ===================================================================
 
+
 // ===================================================================
 // 1. 配置和常量管理
 // ===================================================================
@@ -32,12 +33,42 @@ const CONFIG = {
         scale: 0.5
     },
     
+    // 礼盒配置
+    GIFT_BOX: {
+        width: 320,  // 用户提供的尺寸
+        height: 300, // 用户提供的尺寸
+        frames: 25,  // 用户提供的帧数
+        framesPerRow: 5, // 每行帧数
+        scale: 1.2   // 增大礼盒尺寸
+    },
+    
+    // 气球配置
+    BALLOONS: {
+        width: 1600, // 新的雪碧图宽度
+        height: 1200, // 新的雪碧图高度
+        frames: 36,  // 新的总帧数
+        framesPerRow: 5, // 每行5帧
+        scale: 5 // 增大气球尺寸
+    },
+    
+    // 棕熊配置
+    BEAR: {
+        width: 500,
+        height: 500,
+        frames: 15,
+        framesPerRow: 5, // 每行5帧
+        scale: 0.5 // 棕熊尺寸
+    },
+
+    
     // 动画速度配置
     ANIMATION_SPEEDS: {
         WALKING: 15,
         IDLE: 25,
         SITTING: 40,
-        CAKE: 30
+        CAKE: 30,
+        GIFT_BOX: 6,  // 礼盒动画速度，减少到6让动画更流畅
+        BEAR: 8  // 棕熊动画速度
     },
     
     // 游戏配置
@@ -109,7 +140,10 @@ class ResourceManager {
         this.loadingStates = {
             cat: false,
             cake: false,
-            flyingKitty: false
+            flyingKitty: false,
+            giftBox: false,
+            balloons: false,
+            bear: false
         };
         this.onAllLoaded = null;
     }
@@ -134,7 +168,10 @@ class ResourceManager {
             await Promise.all([
                 this.loadImage('cat', '/static/Calico Farm Cat.png'),
                 this.loadImage('cake', '/static/birthdayCake.png'),
-                this.loadImage('flyingKitty', 'static/kitty-fly-ezgif.com-gif-to-sprite-converter.png')
+                this.loadImage('flyingKitty', 'static/kitty-fly-ezgif.com-gif-to-sprite-converter.png'),
+                this.loadImage('giftBox', '/static/gift-box-sprite.png'),  // 礼盒雪碧图路径
+                this.loadImage('balloons', '/static/balloons-removebg.png'),  // 气球雪碧图路径
+                this.loadImage('bear', '/static/bear.png')  // 棕熊雪碧图路径
             ]);
         } catch (error) {
             console.error('资源加载失败:', error);
@@ -666,6 +703,13 @@ class CharacterSystem {
         this.currentIdleAnimation = 'lickPaw';
         this.currentPath = [];
         
+        // 礼盒动画状态
+        this.showGiftBox = false;
+        this.giftBoxAnimating = false;
+        this.currentGiftBoxFrame = 0;
+        this.giftBoxFrameCount = 0;
+        this.giftBoxAnimationComplete = false;
+        
         // 动画状态
         this.frameCount = 0;
         this.currentFrameIndex = 0;
@@ -675,6 +719,21 @@ class CharacterSystem {
         this.cakeFrameCount = 0;
         this.currentCakeFrame = 0;
         this.cakeRect = {};
+        this.giftBoxRect = {};
+        
+        // 气球动画状态
+        this.showBalloons = false;
+        this.balloonsAnimating = false;
+        this.currentBalloonsFrame = 0;
+        this.balloonsFrameCount = 0;
+        
+        // 棕熊动画状态
+        this.showBear = false;
+        this.bearAnimating = false;
+        this.currentBearFrame = 0;
+        this.bearFrameCount = 0;
+        this.bearWaiting = false;
+        this.bearWaitTimer = 0;
     }
     
     initialize() {
@@ -684,6 +743,21 @@ class CharacterSystem {
         this.y = this.dom.elements.mainCanvas.height * 0.8;
         
         this.updateCakeRect();
+        this.updateGiftBoxRect();
+        
+        // 初始显示礼盒
+        this.showGiftBox = true;
+        this.giftBoxAnimating = false;
+        this.giftBoxAnimationComplete = false;
+        
+        // 气球动画状态
+        this.showBalloons = false;
+        this.balloonsAnimating = false;
+        this.currentBalloonsFrame = 0;
+        this.balloonsFrameCount = 0;
+        
+
+        
         this.pathfinding.createGrid(
             this.dom.elements.mainCanvas.width,
             this.dom.elements.mainCanvas.height,
@@ -695,7 +769,7 @@ class CharacterSystem {
         const drawWidth = CONFIG.CAKE.width * CONFIG.CAKE.scale;
         const drawHeight = CONFIG.CAKE.height * CONFIG.CAKE.scale;
         const cakeX = (this.dom.elements.mainCanvas.width - drawWidth) / 2;
-        const cakeY = (this.dom.elements.mainCanvas.height - drawHeight) / 2;
+        const cakeY = this.dom.elements.mainCanvas.height / 3 - drawHeight / 2; // 移到页面上方三分之一位置
         
         this.cakeRect = {
             x: cakeX,
@@ -703,13 +777,110 @@ class CharacterSystem {
             width: drawWidth,
             height: drawHeight
         };
+        
+        // 更新礼盒位置（与蛋糕位置相同）
+        const giftBoxDrawWidth = CONFIG.GIFT_BOX.width * CONFIG.GIFT_BOX.scale;
+        const giftBoxDrawHeight = CONFIG.GIFT_BOX.height * CONFIG.GIFT_BOX.scale;
+        this.giftBoxRect = {
+            x: (this.dom.elements.mainCanvas.width - giftBoxDrawWidth) / 2,
+            y: this.dom.elements.mainCanvas.height / 3 - giftBoxDrawHeight / 2, // 移到页面上方三分之一位置
+            width: giftBoxDrawWidth,
+            height: giftBoxDrawHeight
+        };
     }
+    
+    updateGiftBoxRect() {
+        const drawWidth = CONFIG.GIFT_BOX.width * CONFIG.GIFT_BOX.scale;
+        const drawHeight = CONFIG.GIFT_BOX.height * CONFIG.GIFT_BOX.scale;
+        const giftBoxX = (this.dom.elements.mainCanvas.width - drawWidth) / 2;
+        const giftBoxY = this.dom.elements.mainCanvas.height / 3 - drawHeight / 2; // 移到页面上方三分之一位置
+        
+        this.giftBoxRect = {
+            x: giftBoxX,
+            y: giftBoxY,
+            width: drawWidth,
+            height: drawHeight
+        };
+    }
+    
+    // 开始礼盒动画
+    startGiftBoxAnimation() {
+        this.showGiftBox = true;
+        this.giftBoxAnimating = true;
+        this.currentGiftBoxFrame = 0;
+        this.giftBoxFrameCount = 0;
+        this.giftBoxAnimationComplete = false;
+    }
+    
+    // 开始气球动画
+    startBalloonsAnimation() {
+        this.showBalloons = true;
+        this.balloonsAnimating = true;
+        this.currentBalloonsFrame = 0;
+        this.balloonsFrameCount = 0;
+    }
+    
+    // 更新礼盒动画
+    updateGiftBoxAnimation() {
+        this.giftBoxFrameCount++;
+        if (this.giftBoxFrameCount >= CONFIG.ANIMATION_SPEEDS.GIFT_BOX) {
+            this.giftBoxFrameCount = 0;
+            this.currentGiftBoxFrame++;
+            
+            // 检查是否到达最后一帧，如果是则立即切换
+            if (this.currentGiftBoxFrame >= CONFIG.GIFT_BOX.frames - 1) {
+                // 礼盒动画播放完成，立即切换到蛋糕并开始气球动画
+                this.giftBoxAnimating = false;
+                this.giftBoxAnimationComplete = true;
+                this.showGiftBox = false;
+                this.currentGiftBoxFrame = 0;
+                // 重置蛋糕动画状态，开始播放蛋糕动画
+                this.currentCakeFrame = 0;
+                this.cakeFrameCount = 0;
+                // 开始气球动画
+                this.startBalloonsAnimation();
+                // 立即启动棕熊动画
+                this.startBearAnimation();
+            }
+        }
+    }
+    
+    // 更新气球动画
+    updateBalloonsAnimation() {
+        this.balloonsFrameCount++;
+        if (this.balloonsFrameCount >= 12) { // 减慢气球动画速度，避免闪烁
+            this.balloonsFrameCount = 0;
+            this.currentBalloonsFrame++;
+            
+            if (this.currentBalloonsFrame >= CONFIG.BALLOONS.frames) {
+                // 气球动画循环播放，不消失
+                this.currentBalloonsFrame = 0;
+            }
+        }
+    }
+    
+
     
     update() {
         if (this.state === 'walking' && this.currentPath.length > 0) {
             this.updateWalking();
         }
-    }
+        
+        // 更新礼盒动画
+         if (this.giftBoxAnimating) {
+             this.updateGiftBoxAnimation();
+         }
+         
+         // 更新气球动画
+         if (this.balloonsAnimating) {
+             this.updateBalloonsAnimation();
+         }
+         
+         // 更新棕熊动画
+         if (this.bearAnimating) {
+             this.updateBearAnimation();
+         }
+     }
     
     updateWalking() {
         const target = this.currentPath[0];
@@ -778,7 +949,23 @@ class CharacterSystem {
     }
     
     draw() {
-        this.drawCake();
+        // 如果显示礼盒，绘制礼盒；否则绘制蛋糕
+        if (this.showGiftBox) {
+            this.drawGiftBox();
+        } else {
+            this.drawCake();
+        }
+        
+        // 绘制气球动画（在角色之前绘制，这样气球在背景层）
+        if (this.showBalloons) {
+            this.drawBalloons();
+        }
+        
+        // 绘制棕熊动画（在右上角）
+        if (this.showBear) {
+            this.drawBear();
+        }
+        
         this.drawCharacter();
     }
     
@@ -794,6 +981,12 @@ class CharacterSystem {
         const sourceX = this.currentCakeFrame * CONFIG.CAKE.width;
         const img = this.resources.getImage('cake');
         
+        // 保存当前canvas设置
+        const originalSmoothing = this.dom.ctx.imageSmoothingEnabled;
+        
+        // 禁用图像平滑以实现像素风格
+        this.dom.ctx.imageSmoothingEnabled = false;
+        
         this.dom.ctx.drawImage(
             img,
             sourceX, 0,
@@ -801,6 +994,114 @@ class CharacterSystem {
             this.cakeRect.x, this.cakeRect.y,
             this.cakeRect.width, this.cakeRect.height
         );
+        
+        // 恢复原始设置
+        this.dom.ctx.imageSmoothingEnabled = originalSmoothing;
+        this.dom.ctx.globalAlpha = 1.0; // 确保恢复透明度设置
+    }
+    
+    drawGiftBox() {
+        if (!this.resources.isLoaded('giftBox')) return;
+        
+        const img = this.resources.getImage('giftBox');
+        const frameWidth = CONFIG.GIFT_BOX.width;
+        const frameHeight = CONFIG.GIFT_BOX.height;
+        
+        // 计算当前帧在雪碧图中的位置
+        const framesPerRow = CONFIG.GIFT_BOX.framesPerRow;
+        const row = Math.floor(this.currentGiftBoxFrame / framesPerRow);
+        const col = this.currentGiftBoxFrame % framesPerRow;
+        
+        const sourceX = col * frameWidth;
+        const sourceY = row * frameHeight;
+        
+        // 计算绘制尺寸和位置
+        let drawWidth = this.giftBoxRect.width;
+        let drawHeight = this.giftBoxRect.height;
+        let drawX = this.giftBoxRect.x;
+        let drawY = this.giftBoxRect.y;
+        
+        // 第四行第二帧（帧索引17）时创造扑面而来的效果
+        if (this.currentGiftBoxFrame >= 17) {
+            const scaleMultiplier = 1.5; // 放大1.5倍
+            drawWidth *= scaleMultiplier;
+            drawHeight *= scaleMultiplier;
+            // 重新计算位置以保持居中
+            drawX = this.giftBoxRect.x - (drawWidth - this.giftBoxRect.width) / 2;
+            drawY = this.giftBoxRect.y - (drawHeight - this.giftBoxRect.height) / 2;
+        }
+        
+        // 保存当前canvas设置
+        const originalSmoothing = this.dom.ctx.imageSmoothingEnabled;
+        
+        // 禁用图像平滑以实现像素风格
+        this.dom.ctx.imageSmoothingEnabled = false;
+        
+        // 保持正常透明度，不使用淡出效果
+        this.dom.ctx.globalAlpha = 1.0;
+        
+        this.dom.ctx.drawImage(
+            img,
+            sourceX, sourceY,
+            frameWidth, frameHeight,
+            drawX, drawY,
+            drawWidth, drawHeight
+        );
+        
+        // 恢复原始设置
+        this.dom.ctx.imageSmoothingEnabled = originalSmoothing;
+        this.dom.ctx.globalAlpha = 1.0; // 确保恢复透明度设置
+    }
+    
+    drawBalloons() {
+        if (!this.resources.isLoaded('balloons')) return;
+        
+        const img = this.resources.getImage('balloons');
+        const frameWidth = CONFIG.BALLOONS.width;
+        const frameHeight = CONFIG.BALLOONS.height;
+        
+        // 计算当前帧在雪碧图中的位置
+        const framesPerRow = CONFIG.BALLOONS.framesPerRow;
+        const row = Math.floor(this.currentBalloonsFrame / framesPerRow);
+        const col = this.currentBalloonsFrame % framesPerRow;
+        
+        const sourceX = col * frameWidth;
+        const sourceY = row * frameHeight;
+        
+        // 计算绘制尺寸和位置（固定在左上角）
+        const canvasWidth = this.dom.elements.mainCanvas.width;
+        const canvasHeight = this.dom.elements.mainCanvas.height;
+        
+        // 使用配置中的scale值来设置气球大小
+        const baseSize = Math.min(canvasWidth, canvasHeight) * 0.1; // 基础大小为画布的10%
+        const scale = (baseSize * CONFIG.BALLOONS.scale) / Math.max(frameWidth, frameHeight);
+        
+        const drawWidth = frameWidth * scale;
+        const drawHeight = frameHeight * scale;
+        const drawX = 20; // 距离左边20像素
+        const drawY = 20; // 距离顶部20像素
+        
+        // 保存当前canvas设置
+        const originalSmoothing = this.dom.ctx.imageSmoothingEnabled;
+        const originalAlpha = this.dom.ctx.globalAlpha;
+        
+        // 启用图像平滑以减少闪烁
+        this.dom.ctx.imageSmoothingEnabled = true;
+        
+        // 保持完全不透明
+        this.dom.ctx.globalAlpha = 1.0;
+        
+        this.dom.ctx.drawImage(
+            img,
+            sourceX, sourceY,
+            frameWidth, frameHeight,
+            drawX, drawY,
+            drawWidth, drawHeight
+        );
+        
+        // 恢复原始设置
+        this.dom.ctx.imageSmoothingEnabled = originalSmoothing;
+        this.dom.ctx.globalAlpha = 1.0; // 确保恢复透明度设置
     }
     
     drawCharacter() {
@@ -867,6 +1168,72 @@ class CharacterSystem {
             sourceX, sourceY,
             CONFIG.CAT.width, CONFIG.CAT.height,
             this.x - drawWidth / 2, this.y - drawHeight / 2,
+            drawWidth, drawHeight
+        );
+    }
+    
+    // 开始棕熊动画
+    startBearAnimation() {
+        this.showBear = true;
+        this.bearAnimating = true;
+        this.currentBearFrame = 0;
+        this.bearFrameCount = 0;
+    }
+    
+    // 更新棕熊动画
+    updateBearAnimation() {
+        // 如果在等待状态，更新等待计时器
+        if (this.bearWaiting) {
+            this.bearWaitTimer++;
+            if (this.bearWaitTimer >= 900) { // 等待15秒（假设60fps）
+                this.bearWaiting = false;
+                this.bearWaitTimer = 0;
+                this.currentBearFrame = 0; // 重新开始动画
+            }
+            return;
+        }
+        
+        this.bearFrameCount++;
+        if (this.bearFrameCount >= CONFIG.ANIMATION_SPEEDS.BEAR) {
+            this.bearFrameCount = 0;
+            this.currentBearFrame++;
+            
+            if (this.currentBearFrame >= CONFIG.BEAR.frames) {
+                // 棕熊动画播放完成，停止在第一帧并等待15秒
+                this.currentBearFrame = 0;
+                this.bearWaiting = true;
+                this.bearWaitTimer = 0;
+            }
+        }
+    }
+    
+    // 绘制棕熊
+    drawBear() {
+        if (!this.resources.isLoaded('bear')) return;
+        
+        const img = this.resources.getImage('bear');
+        const frameWidth = CONFIG.BEAR.width;
+        const frameHeight = CONFIG.BEAR.height;
+        
+        // 计算当前帧在雪碧图中的位置
+        const framesPerRow = CONFIG.BEAR.framesPerRow;
+        const row = Math.floor(this.currentBearFrame / framesPerRow);
+        const col = this.currentBearFrame % framesPerRow;
+        
+        const sourceX = col * frameWidth;
+        const sourceY = row * frameHeight;
+        
+        // 计算绘制尺寸和位置（蛋糕右边）
+        const drawWidth = frameWidth * CONFIG.BEAR.scale;
+        const drawHeight = frameHeight * CONFIG.BEAR.scale;
+        const bearX = this.cakeRect.x + this.cakeRect.width + 10; // 蛋糕右边20px
+        const bearY = this.cakeRect.y + (this.cakeRect.height - drawHeight) / 2; // 与蛋糕垂直居中对齐
+        
+        this.dom.ctx.drawImage(
+            img,
+            sourceX, sourceY,
+            frameWidth, frameHeight,
+            bearX, bearY,
             drawWidth, drawHeight
         );
     }
@@ -1093,9 +1460,30 @@ class InteractionSystem {
         const clickX = e.clientX - rect.left;
         const clickY = e.clientY - rect.top;
         
+        // 检查是否双击了蛋糕/礼盒区域
         if (this.pathfinding.isPointInCake(clickX, clickY, this.character.cakeRect)) {
-            this.dialogue.show("喵~ 不能走到蛋糕上面！", 2000, this.character.x, this.character.y, this.character);
-            return;
+            // 如果礼盒还存在，执行礼盒逻辑
+            if (this.character.showGiftBox) {
+                if (!this.character.giftBoxAnimating) {
+                    // 启动礼盒动画
+                    this.character.startGiftBoxAnimation();
+                    this.dialogue.show("🎁 哇！礼盒打开了！", 2000, this.character.x, this.character.y, this.character);
+                } else {
+                    this.dialogue.show("🎁 礼盒正在打开中...", 2000, this.character.x, this.character.y, this.character);
+                }
+                return;
+            } else {
+                // 如果礼盒不存在,点击就随机触发蛋糕的生日祝福
+                const birthdayMessages = [
+                    "🎂 祝你生日快乐！愿你的每一天都充满阳光和欢笑！",
+                    "🎉 生日快乐！愿这个特别的日子带给你无尽的幸福！",
+                    "🎈 在这个美好的日子里，愿你所有的愿望都能实现！",
+
+                ]
+                const randomMessage = birthdayMessages[Math.floor(Math.random() * birthdayMessages.length)];
+                this.dialogue.show(randomMessage, 2000, this.character.x, this.character.y, this.character);
+                return;
+            }
         }
         
         // 检查点击位置是否在允许的活动范围内（蛋糕下方）
