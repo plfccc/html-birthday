@@ -1,4 +1,4 @@
-body {
+body { 
     margin: 0;
     background-color: #1a1a1a;
     overflow: hidden; 
@@ -20,7 +20,7 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background: radial-gradient(circle, #fde4ea, #f8c1d1);
+    background: radial-gradient(circle, #fde4ea,#f8c1d1);
     z-index: 100;
     opacity: 1;
     transition: opacity 1.5s ease-in-out, transform 1.5s ease-in-out;
